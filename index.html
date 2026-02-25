@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Webhook Receiver • GitHub → Vercel</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+  <div class="container">
+
+    <header>
+      <h1>Webhook Receiver</h1>
+      <p class="subtitle">
+        GitHub Webhook → Validation → Vercel Deploy Hook Trigger
+      </p>
+    </header>
+
+    <main>
+
+      <section class="status-card">
+        <h2>Service Status</h2>
+        <div class="status-row">
+          <div class="label">Webhook endpoint:</div>
+          <code>https://your-project-name.vercel.app/webhook</code>
+        </div>
+        <div class="status-row">
+          <div class="label">HTTP method:</div>
+          <code>POST</code>
+        </div>
+        <div class="status-row">
+          <div class="label">Content-Type:</div>
+          <code>application/json</code>
+        </div>
+        <div class="status-row">
+          <div class="label">Required header:</div>
+          <code>X-Hub-Signature-256</code>
+        </div>
+        <div class="status-row">
+          <div class="label">Supported events:</div>
+          <code>push</code>, <code>pull_request</code>
+        </div>
+      </section>
+
+      <section class="config-card">
+        <h2>Configuration Checklist</h2>
+
+        <ol class="checklist">
+          <li>
+            <strong>Environment variables set in Vercel dashboard:</strong>
+            <ul>
+              <li><code>GITHUB_WEBHOOK_SECRET</code> — same value as in GitHub webhook settings</li>
+              <li><code>VERCEL_DEPLOY_HOOK_URL</code> — copied from Vercel → Settings → Git → Deploy Hooks</li>
+            </ul>
+          </li>
+          <li>
+            GitHub webhook created with:
+            <ul>
+              <li>Payload URL: <code>https://your-project-name.vercel.app/webhook</code></li>
+              <li>Content type: <code>application/json</code></li>
+              <li>Secret: matches <code>GITHUB_WEBHOOK_SECRET</code></li>
+              <li>Events: Pushes + Pull requests (opened, synchronize, reopened)</li>
+            </ul>
+          </li>
+          <li>
+            Deploy Hook created in Vercel project settings
+          </li>
+        </ol>
+      </section>
+
+      <section class="flow-diagram">
+        <h2>Request Flow</h2>
+        <div class="flow">
+          <div class="step">GitHub</div>
+          <div class="arrow">→</div>
+          <div class="step active">Webhook /webhook</div>
+          <div class="arrow">→</div>
+          <div class="step">Signature validation</div>
+          <div class="arrow">→</div>
+          <div class="step">Event filter (main / PR)</div>
+          <div class="arrow">→</div>
+          <div class="step success">Trigger Vercel Deploy Hook</div>
+        </div>
+      </section>
+
+      <section class="debug-info">
+        <h2>Testing & Debugging</h2>
+        <p>You can test the endpoint locally using:</p>
+        <pre><code>curl -X POST http://localhost:3000/webhook \
+  -H "Content-Type: application/json" \
+  -H "X-Hub-Signature-256: sha256=..." \
+  -d '{"ref":"refs/heads/main","repository":{"full_name":"owner/repo"}}'</code></pre>
+
+        <p>Check Vercel function logs for:</p>
+        <ul>
+          <li>Invalid signature warnings</li>
+          <li>Skipped events (branch/action not matching criteria)</li>
+          <li>Successful deployment trigger messages</li>
+        </ul>
+      </section>
+
+    </main>
+
+    <footer>
+      <p>Webhook protection &emsp; • &emsp; HMAC-SHA256 verification &emsp; • &emsp; Serverless on Vercel</p>
+      <p class="small">Last updated: 2026</p>
+    </footer>
+
+  </div>
+
+</body>
+</html>
