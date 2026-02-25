@@ -1,0 +1,24 @@
+{
+  "name": "github-vercel-webhook-receiver",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GitHub webhook receiver that validates signature and triggers Vercel deploy hook",
+  "main": "api/webhook.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "lint": "eslint . --ext .js",
+    "format": "prettier --write ."
+  },
+  "engines": {
+    "node": ">=18.x"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "eslint": "^9.13.0",
+    "eslint-config-standard": "^17.1.0",
+    "prettier": "^3.3.3"
+  },
+  "volta": {
+    "node": "20.18.0"
+  }
+}
