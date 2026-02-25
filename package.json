@@ -2,13 +2,13 @@
   "name": "crtoel",
   "version": "1.0.0",
   "private": true,
-  "description": "GitHub webhook receiver → Vercel deploy hook trigger",
+  "description": "GitHub webhook receiver that triggers Vercel deployment",
   "main": "api/webhook.js",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "dev": "vercel dev"
+    "start": "vercel dev"
   },
   "dependencies": {},
   "devDependencies": {}
