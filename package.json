@@ -1,15 +1,15 @@
 {
-  "name": "github-vercel-webhook-receiver",
+  "name": "crtoel",
   "version": "1.0.0",
   "private": true,
-  "description": "GitHub webhook receiver that validates signature and triggers Vercel deploy hook",
+  "description": "GitHub webhook receiver → Vercel deploy hook trigger",
   "main": "api/webhook.js",
   "engines": {
-    "node": ">=18.x"
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "vercel dev"
   },
   "dependencies": {},
-  "devDependencies": {},
-  "volta": {
-    "node": "20.18.0"
-  }
+  "devDependencies": {}
 }
