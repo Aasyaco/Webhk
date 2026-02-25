@@ -4,9 +4,6 @@
   "private": true,
   "description": "GitHub webhook receiver that validates signature and triggers Vercel deploy hook",
   "main": "api/webhook.js",
-  "scripts": {
-    "dev": "vercel dev"
-  },
   "engines": {
     "node": ">=18.x"
   },
