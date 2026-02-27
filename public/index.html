@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Miss Islington Bot Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f7f9fc; margin: 0; padding: 0; color: #333; }
+        header { background-color: #4B8BBE; color: white; padding: 2rem; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        header h1 { margin: 0; font-size: 2.2rem; }
+        header p { margin-top: 0.5rem; font-size: 1rem; color: #e0eaff; }
+        main { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+        .card { background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .card h2 { margin-top: 0; color: #4B8BBE; }
+        .card ul { list-style: none; padding-left: 0; }
+        .card li { padding: 0.5rem 0; border-bottom: 1px solid #f0f0f0; }
+        .card li:last-child { border-bottom: none; }
+        .status { display: inline-block; padding: 0.3rem 0.8rem; border-radius: 20px; font-weight: bold; color: white; font-size: 0.9rem; }
+        .status.running { background-color: #28a745; }
+        .status.error { background-color: #dc3545; }
+        @media (max-width: 600px) { header h1 { font-size: 1.8rem; } .card { padding: 1rem; } }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Miss Islington Bot Dashboard</h1>
+        <p>Monitoring backport automation for your CPython fork</p>
+    </header>
+    <main>
+        <section class="card" id="bot-status">
+            <h2>Bot Status</h2>
+            <p>Status: <span class="status running">Running</span></p>
+            <p>Last checked: <span id="last-checked">--</span></p>
+        </section>
+
+        <section class="card" id="recent-prs">
+            <h2>Last Processed Pull Requests</h2>
+            <ul id="pr-list">
+                <li>Loading real backports...</li>
+            </ul>
+        </section>
+
+        <section class="card" id="instructions">
+            <h2>Usage Notes</h2>
+            <ul>
+                <li>Ensure your GitHub App <code>axotbot</code> is installed on the target repo.</li>
+                <li>Labels like <code>needs backport to 3.13</code> trigger automatic backports.</li>
+                <li>Webhook endpoint: <code>/api/webhook</code> must be live.</li>
+                <li>Status updates and PRs appear automatically once processed.</li>
+            </ul>
+        </section>
+    </main>
+
+    <script>
+        // Update last-checked time every second
+        const lastChecked = document.getElementById('last-checked');
+        function updateTime() { lastChecked.textContent = new Date().toLocaleString(); }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Fetch real backports from API
+        async function fetchBackports() {
+            try {
+                const res = await fetch('/api/backports');
+                const data = await res.json();
+                const ul = document.getElementById('pr-list');
+                ul.innerHTML = '';
+                if (data.length === 0) {
+                    ul.innerHTML = '<li>No backports yet</li>';
+                    return;
+                }
+                data.forEach(item => {
+                    const li = document.createElement('li');
+                    li.textContent = `PR #${item.prNumber} → ${item.targetBranch} (${item.title})`;
+                    ul.appendChild(li);
+                });
+            } catch (err) {
+                console.error('Failed to fetch backports', err);
+            }
+        }
+        fetchBackports();
+        setInterval(fetchBackports, 10000); // refresh every 10 seconds
+    </script>
+</body>
+</html>

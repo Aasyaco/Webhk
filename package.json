@@ -1,15 +1,32 @@
 {
-  "name": "crtoel",
-  "version": "1.0.0",
-  "private": true,
-  "description": "GitHub webhook receiver that triggers Vercel deployment",
-  "main": "api/webhook.js",
-  "engines": {
-    "node": ">=18"
-  },
+  "name": "advanced-miss-islington",
+  "version": "2.2.0",
+  "description": "Automated backport bot for CPython fork using GitHub App",
+  "type": "module",
+  "main": "server.js",
   "scripts": {
-    "start": "vercel dev"
+    "start": "node server.js",
+    "dev": "NODE_ENV=development node server.js"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "engines": {
+    "node": ">=18.x"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "@octokit/app": "^16.1.2",
+    "@octokit/rest": "^22.0.0",
+    "dotenv": "^16.4.5",
+    "pino-pretty": "13.0.0",
+    "pino": "^10.0.0"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "github-app",
+    "webhook",
+    "backport",
+    "cpython",
+    "axotbot"
+  ],
+  "author": "Aasyaco",
+  "license": "MIT"
 }

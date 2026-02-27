@@ -1,0 +1,44 @@
+name: Auto Backport
+
+on:
+  repository_dispatch:
+    types: [backport]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  backport:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup git
+        run: |
+          git config user.name "miss-islington-bot"
+          git config user.email "bot@example.com"
+
+      - name: Cherry pick commit
+        env:
+          COMMIT: ${{ github.event.client_payload.mergeCommit }}
+          TARGET: ${{ github.event.client_payload.targetBranch }}
+        run: |
+          git fetch origin $TARGET
+          git checkout -b backport-$TARGET origin/$TARGET
+          git cherry-pick $COMMIT || echo "Conflict detected"
+
+      - name: Push branch
+        run: |
+          git push origin HEAD
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: backport-${{ github.event.client_payload.targetBranch }}
+          title: "[Backport] PR #${{ github.event.client_payload.prNumber }}"
+          body: "Automated backport created by Miss Islington Bot"
