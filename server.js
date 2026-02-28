@@ -4,14 +4,22 @@ import webhookHandler from "./api/webhook.js";
 
 dotenv.config();
 
+// const app = express();
+/* app.use("/api/webhook", express.raw({ type: "application/json" })); */
+/* Required for GitHub webhook signature verification */
+
+
 const app = express();
 
-/* Required for GitHub webhook signature verification */
-app.use(express.json({
-  verify: (req, res, buf) => {
-    req.rawBody = buf.toString();
+app.use("/api/webhook", express.raw({ type: "*/*" }));
+
+/* JSON parser for all OTHER routes */
+app.use((req, res, next) => {
+  if (req.originalUrl === "/api/webhook") {
+    return next();
   }
-}));
+  express.json()(req, res, next);
+});
 
 /* Webhook route */
 app.post("/api/webhook", webhookHandler);
