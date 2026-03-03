@@ -76,8 +76,16 @@ export default async function webhook(req, res) {
     const rawBody = await getRawBody(req);
     req.rawBody = rawBody;
 //    const payload = JSON.parse(rawBody.toString());
+    console.log("rawBody exists:", !!rawBody);
+    console.log("rawBody length:", rawBody?.length);
+    console.log("rawBody value:", rawBody);
     let payload;
     payload = JSON.parse(rawBody.toString("utf8"));
+    logger.info("Payload parsed successfully", {
+        event,
+        ref: payload.ref,
+        commits: payload.commits?.length ?? 0,
+      });
 
     logger.info(`GitHub event received: ${event}`);
 
