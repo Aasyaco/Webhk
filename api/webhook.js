@@ -1,135 +1,72 @@
-import crypto from "crypto";
-import { handleBackportEvent } from "../lib/backports.js";
-import logger from "../lib/logger.js";
+'use strict';
 
-/**
- * Verify GitHub webhook signature.
- * Prevents spoofed requests.
- */
+const crypto = require('crypto');
 
 export const config = {
   api: {
-    bodyParser: false,
-  },
+    bodyParser: false
+  }
 };
 
-
-async function getRawBody(req) {
-  const chunks = [];
-  for await (const chunk of req) {
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks);
+function getRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
 }
 
-
-
-async function verifySignature(req) {
-  const signature = req.headers["x-hub-signature-256"];
-  const secret = process.env.GITHUB_WEBHOOK_SECRET;
-  const rawBody = await getRawBody(req);
-  req.rawBody = rawBody;
-  if (!signature || !secret || !req.rawBody) return false;
-  let payload;
-  try {
-    payload = JSON.parse(rawBody.toString("utf8"));
-  } catch {
-    return res.status(400).send("Invalid JSON");
+function verifySignature(secret, rawBody, signatureHeader) {
+  if (!signatureHeader) {
+    const e = new Error('Missing X-Hub-Signature-256 header');
+    e.status = 400;
+    throw e;
   }
-  const expected =
-    "sha256=" +
-    crypto
-      .createHmac("sha256", secret)
+
+  const expected = 'sha256=' +
+    crypto.createHmac('sha256', secret)
       .update(rawBody)
-      .digest("hex");
+      .digest('hex');
 
-  console.log("Raw body type:", rawBody.constructor.name); // Should be Buffer
-  console.log("Raw Body:", payload)
-  console.log("Raw body length:", Object.keys(payload).length);
-  console.log("Signature header:", req.headers["x-hub-signature-256"]);
-  console.log("Secret length:", process.env.GITHUB_WEBHOOK_SECRET?.length);
-  try {
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expected)
-    );
-  } catch {
-    return false;
+  const expectedBuf = Buffer.from(expected);
+  const headerBuf = Buffer.from(signatureHeader);
+
+  if (expectedBuf.length !== headerBuf.length ||
+      !crypto.timingSafeEqual(expectedBuf, headerBuf)) {
+    const e = new Error('Invalid webhook signature');
+    e.status = 401;
+    throw e;
   }
 }
 
-/**
- * GitHub webhook handler.
- * Handles pull_request backport automation.
- */
-export default async function webhook(req, res) {
+export default async function handler(req, res) {
   try {
-    /* 🔐 Verify request */
-    if (req.headers["x-github-event"] !== "pink") {
-        if (!(await verifySignature(req))) {
-          logger.warn("Invalid webhook signature");
-          return res.status(401).send("Invalid signature");
-        }
+    if (req.method !== 'POST') {
+      return res.status(405).end();
     }
 
-    const event = req.headers["x-github-event"];
+    const secret = process.env.GITHUB_WEBHOOK_SECRET;
+    if (!secret) {
+      return res.status(500).json({ error: 'Missing webhook secret' });
+    }
+
     const rawBody = await getRawBody(req);
-    req.rawBody = rawBody;
-//    const payload = JSON.parse(rawBody.toString());
-    console.log("rawBody exists:", !!rawBody);
-    console.log("rawBody length:", rawBody?.length);
-    console.log("rawBody value:", rawBody);
-    let payload;
-    payload = JSON.parse(rawBody.toString("utf8"));
-    logger.info("Payload parsed successfully", {
-        event,
-        ref: payload.ref,
-        commits: payload.commits?.length ?? 0,
-      });
+    const signature = req.headers['x-hub-signature-256'];
 
-    logger.info(`GitHub event received: ${event}`);
+    verifySignature(secret, rawBody, signature);
 
-    /* 🎯 Route events */
-    switch (event) {
-      case "pull_request":
-        await handlePullRequest(payload);
-        break;
+    const event = req.headers['x-github-event'];
+    const payload = JSON.parse(rawBody.toString('utf8'));
 
-      case "ping":
-        logger.info("GitHub ping received");
-        break;
-      case "pink":
-        logger.info("Passed");
-        break
+    return res.status(200).json({
+      received: true,
+      event
+    });
 
-      default:
-        logger.info(`Unhandled event: ${event}`);
-    }
-
-    res.status(200).send("OK");
   } catch (err) {
-    logger.error(err, "Webhook error");
-    res.status(500).send("Internal Server Error");
+    return res.status(err.status || 500).json({
+      error: err.message || 'Internal Server Error'
+    });
   }
-}
-
-/**
- * Handle pull request events.
- */
-async function handlePullRequest(payload) {
-  const action = payload.action;
-
-  /* Only act when PR merged */
-  if (action !== "closed") return;
-
-  if (!payload.pull_request?.merged) {
-    logger.info("PR closed but not merged");
-    return;
-  }
-
-  logger.info(
-    `Processing merged PR #${payload.pull_request.number}`
-  );
-
-  await handleBackportEvent(payload);
 }

@@ -1,85 +1,548 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Miss Islington Bot Dashboard</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f7f9fc; margin: 0; padding: 0; color: #333; }
-        header { background-color: #4B8BBE; color: white; padding: 2rem; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        header h1 { margin: 0; font-size: 2.2rem; }
-        header p { margin-top: 0.5rem; font-size: 1rem; color: #e0eaff; }
-        main { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
-        .card { background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-        .card h2 { margin-top: 0; color: #4B8BBE; }
-        .card ul { list-style: none; padding-left: 0; }
-        .card li { padding: 0.5rem 0; border-bottom: 1px solid #f0f0f0; }
-        .card li:last-child { border-bottom: none; }
-        .status { display: inline-block; padding: 0.3rem 0.8rem; border-radius: 20px; font-weight: bold; color: white; font-size: 0.9rem; }
-        .status.running { background-color: #28a745; }
-        .status.error { background-color: #dc3545; }
-        @media (max-width: 600px) { header h1 { font-size: 1.8rem; } .card { padding: 1rem; } }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="AxotBot — automated backport and merge bot for zrsx/cpython" />
+  <title>AxotBot · Dashboard</title>
+
+  <!-- Typefaces -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Exo+2:wght@300;400;600;800;900&family=Orbitron:wght@400;700;900&display=swap"
+  />
+
+  <!-- Styles — the only stylesheet; no inline styles anywhere in this file -->
+  <link rel="stylesheet" href="dashboard.css" />
 </head>
 <body>
-    <header>
-        <h1>Miss Islington Bot Dashboard</h1>
-        <p>Monitoring backport automation for your CPython fork</p>
-    </header>
-    <main>
-        <section class="card" id="bot-status">
-            <h2>Bot Status</h2>
-            <p>Status: <span class="status running">Running</span></p>
-            <p>Last checked: <span id="last-checked">--</span></p>
-        </section>
 
-        <section class="card" id="recent-prs">
-            <h2>Last Processed Pull Requests</h2>
-            <ul id="pr-list">
-                <li>Loading real backports...</li>
-            </ul>
-        </section>
+  <!-- ═══════════════════════════════════════════════════════════
+       BACKGROUND DECORATION LAYERS
+       Purely cosmetic; described to AT as hidden.
+  ════════════════════════════════════════════════════════════ -->
+  <div class="bg-grid"      aria-hidden="true"></div>
+  <div class="bg-glow"      aria-hidden="true"></div>
+  <div class="bg-scanlines" aria-hidden="true"></div>
 
-        <section class="card" id="instructions">
-            <h2>Usage Notes</h2>
-            <ul>
-                <li>Ensure your GitHub App <code>axotbot</code> is installed on the target repo.</li>
-                <li>Labels like <code>needs backport to 3.13</code> trigger automatic backports.</li>
-                <li>Webhook endpoint: <code>/api/webhook</code> must be live.</li>
-                <li>Status updates and PRs appear automatically once processed.</li>
-            </ul>
-        </section>
-    </main>
 
-    <script>
-        // Update last-checked time every second
-        const lastChecked = document.getElementById('last-checked');
-        function updateTime() { lastChecked.textContent = new Date().toLocaleString(); }
-        setInterval(updateTime, 1000);
-        updateTime();
+  <!-- ═══════════════════════════════════════════════════════════
+       PAGE WRAPPER
+  ════════════════════════════════════════════════════════════ -->
+  <div class="wrap">
 
-        // Fetch real backports from API
-        async function fetchBackports() {
-            try {
-                const res = await fetch('/api/backports');
-                const data = await res.json();
-                const ul = document.getElementById('pr-list');
-                ul.innerHTML = '';
-                if (data.length === 0) {
-                    ul.innerHTML = '<li>No backports yet</li>';
-                    return;
-                }
-                data.forEach(item => {
-                    const li = document.createElement('li');
-                    li.textContent = `PR #${item.prNumber} → ${item.targetBranch} (${item.title})`;
-                    ul.appendChild(li);
-                });
-            } catch (err) {
-                console.error('Failed to fetch backports', err);
-            }
-        }
-        fetchBackports();
-        setInterval(fetchBackports, 10000); // refresh every 10 seconds
-    </script>
+
+    <!-- ─────────────────────────────────────────────────────────
+         SITE HEADER
+    ────────────────────────────────────────────────────────── -->
+    <header class="site-header">
+
+      <!-- Logo -->
+      <div class="logo">
+        <div class="logo-icon" aria-hidden="true">🐍</div>
+        <div class="logo-text-group">
+          <span class="logo-wordmark">Axot<em>Bot</em></span>
+          <span class="logo-tagline">CPython Backport Automation · v3.0</span>
+        </div>
+      </div>
+
+      <!-- Navigation / status cluster -->
+      <nav class="header-nav" aria-label="Links and connection status">
+
+        <!-- Auth mode badge — JS adds class "app" or "token" to this element -->
+        <div class="auth-badge" id="authBadge" aria-live="polite" aria-atomic="true">
+          <span class="auth-dot"  aria-hidden="true"></span>
+          <span class="auth-mode" id="authMode">—</span>
+          <span class="auth-desc" id="authDesc"></span>
+        </div>
+
+        <!-- External links -->
+        <a class="chip"
+           href="https://github.com/zrsx/cpython"
+           target="_blank"
+           rel="noopener noreferrer"
+           aria-label="View zrsx/cpython on GitHub (opens in new tab)">
+          <svg class="chip-icon"
+               viewBox="0 0 24 24"
+               fill="currentColor"
+               aria-hidden="true"
+               focusable="false">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205
+              11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555
+              -3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02
+              -.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305
+              3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925
+              0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005
+              -.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56
+              3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23
+              3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22
+              0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02
+              0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          zrsx/cpython
+        </a>
+
+        <a class="chip"
+           href="https://github.com/apps/AxotBot"
+           target="_blank"
+           rel="noopener noreferrer"
+           aria-label="AxotBot on GitHub Apps (opens in new tab)">
+          <span aria-hidden="true">🤖</span>
+          AxotBot App
+        </a>
+
+        <!-- Live connection status -->
+        <div class="status-indicator" role="status" aria-live="polite" aria-atomic="true">
+          <span class="pulse-dot"   id="pulseDot"   aria-hidden="true"></span>
+          <span class="status-label" id="statusLabel">connecting…</span>
+        </div>
+
+      </nav>
+    </header><!-- /.site-header -->
+
+
+    <!-- ─────────────────────────────────────────────────────────
+         INFO BAR
+    ────────────────────────────────────────────────────────── -->
+    <aside class="info-bar" aria-label="Bot configuration summary">
+      <span>🤖 Watching <code>zrsx/cpython</code></span>
+      <span class="info-sep" aria-hidden="true">·</span>
+      <span>Webhook: <code>POST /api/webhook</code></span>
+      <span class="info-sep" aria-hidden="true">·</span>
+      <span>Backport label: <code>needs backport to X.Y</code></span>
+      <span class="info-sep" aria-hidden="true">·</span>
+      <span>Automerge: <code>🤖 automerge</code> + CI green + approval</span>
+    </aside>
+
+
+    <!-- ─────────────────────────────────────────────────────────
+         CONFIG ERROR ALERT
+         Hidden by default; JS removes the hidden attribute when needed.
+    ────────────────────────────────────────────────────────── -->
+    <div class="alert alert--warn"
+         id="configAlert"
+         hidden
+         role="alert"
+         aria-live="assertive">
+      <span class="alert-icon" aria-hidden="true">⚠️</span>
+      <div id="configAlertMsg"></div>
+    </div>
+
+
+    <!-- ─────────────────────────────────────────────────────────
+         STATS GRID
+    ────────────────────────────────────────────────────────── -->
+    <section class="stats-section" aria-label="Bot statistics">
+
+      <div class="stats-grid">
+
+        <article class="stat-card" data-accent="green">
+          <h3 class="stat-label">Backports Succeeded</h3>
+          <p class="stat-value" id="sSuccess">—</p>
+          <p class="stat-sub">cherry-picks merged</p>
+        </article>
+
+        <article class="stat-card" data-accent="amber">
+          <h3 class="stat-label">Backports Attempted</h3>
+          <p class="stat-value" id="sAttempt">—</p>
+          <p class="stat-sub">total triggered</p>
+        </article>
+
+        <article class="stat-card" data-accent="red">
+          <h3 class="stat-label">Backports Failed</h3>
+          <p class="stat-value" id="sFail">—</p>
+          <p class="stat-sub">conflicts / errors</p>
+        </article>
+
+        <article class="stat-card" data-accent="blue">
+          <h3 class="stat-label">Auto-merges</h3>
+          <p class="stat-value" id="sMerge">—</p>
+          <p class="stat-sub">PRs merged</p>
+        </article>
+
+        <article class="stat-card" data-accent="teal">
+          <h3 class="stat-label">Uptime</h3>
+          <p class="stat-value stat-value--compact" id="sUptime">—</p>
+          <p class="stat-sub" id="sStarted">since —</p>
+        </article>
+
+      </div><!-- /.stats-grid -->
+
+      <p class="last-updated" id="lastUpdated" aria-live="polite"></p>
+
+    </section><!-- /.stats-section -->
+
+
+    <!-- ─────────────────────────────────────────────────────────
+         MAIN TWO-COLUMN CONTENT
+    ────────────────────────────────────────────────────────── -->
+    <div class="content-cols">
+
+      <!-- LEFT PANEL — Backports & Merges with tabs -->
+      <section class="panel" aria-label="Backport and merge history">
+
+        <div class="tab-bar" role="tablist" aria-label="History view">
+
+          <button class="tab tab--active"
+                  id="tab-bp"
+                  role="tab"
+                  aria-selected="true"
+                  aria-controls="panel-bp">
+            🍒 Backports
+          </button>
+
+          <button class="tab"
+                  id="tab-merge"
+                  role="tab"
+                  aria-selected="false"
+                  aria-controls="panel-merge">
+            ✅ Auto-merges
+          </button>
+
+        </div><!-- /.tab-bar -->
+
+        <!-- Backports panel -->
+        <div id="panel-bp"
+             class="tab-panel"
+             role="tabpanel"
+             aria-labelledby="tab-bp">
+          <ul id="bpList" aria-label="Recent backports">
+            <li class="empty-state">
+              <span class="empty-icon" aria-hidden="true">🍒</span>
+              Awaiting backport events…
+            </li>
+          </ul>
+        </div>
+
+        <!-- Merges panel (hidden until tab selected) -->
+        <div id="panel-merge"
+             class="tab-panel"
+             role="tabpanel"
+             aria-labelledby="tab-merge"
+             hidden>
+          <ul id="mergeList" aria-label="Recent auto-merges">
+            <li class="empty-state">
+              <span class="empty-icon" aria-hidden="true">✅</span>
+              No auto-merges yet this session.
+            </li>
+          </ul>
+        </div>
+
+      </section><!-- /.panel (left) -->
+
+      <!-- RIGHT PANEL — Live event log -->
+      <section class="panel" aria-label="Event log">
+
+        <header class="panel-header">
+          <h2 class="panel-title">Recent Events</h2>
+          <span class="count-badge" id="logBadge" aria-label="Total events">0</span>
+        </header>
+
+        <ul class="log-list"
+            id="logList"
+            aria-label="Event log"
+            aria-live="polite"
+            aria-relevant="additions">
+          <li class="empty-state">
+            <span class="empty-icon" aria-hidden="true">📡</span>
+            Connecting…
+          </li>
+        </ul>
+
+      </section><!-- /.panel (right) -->
+
+    </div><!-- /.content-cols -->
+
+
+    <!-- ─────────────────────────────────────────────────────────
+         SITE FOOTER
+    ────────────────────────────────────────────────────────── -->
+    <footer class="site-footer">
+
+      <p class="footer-links">
+        AxotBot v3.0
+        <span aria-hidden="true">·</span>
+        <a href="https://github.com/apps/AxotBot"
+           target="_blank"
+           rel="noopener noreferrer">GitHub App</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://github.com/zrsx/cpython"
+           target="_blank"
+           rel="noopener noreferrer">zrsx/cpython</a>
+        <span aria-hidden="true">·</span>
+        <a href="/health">health</a>
+      </p>
+
+      <div class="footer-right">
+        <span class="uptime-chip" id="uptimeChip">uptime: —</span>
+      </div>
+
+    </footer><!-- /.site-footer -->
+
+
+  </div><!-- /.wrap -->
+
+
+  <!-- ═══════════════════════════════════════════════════════════
+       JAVASCRIPT
+       Inline at end of body — no external .js file needed.
+  ════════════════════════════════════════════════════════════ -->
+  <script>
+  'use strict';
+
+  /* ── DOM helpers ──────────────────────────────────────────── */
+
+  const byId = (id) => document.getElementById(id);
+
+  function setText(id, value) {
+    const el = byId(id);
+    const s = String(value ?? '—');
+    if (el && el.textContent !== s) el.textContent = s;
+  }
+
+  /* ── Formatting ───────────────────────────────────────────── */
+
+  function fmtTime(iso) {
+    return new Date(iso).toLocaleTimeString('en-US', { hour12: false });
+  }
+
+  function fmtAgo(iso) {
+    const s = Math.floor((Date.now() - new Date(iso)) / 1000);
+    if (s < 60)    return s + 's ago';
+    if (s < 3600)  return Math.floor(s / 60) + 'm ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+    return Math.floor(s / 86400) + 'd ago';
+  }
+
+  function escHtml(v) {
+    return String(v ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  /* ── Tab switching ────────────────────────────────────────── */
+
+  function initTabs() {
+    const tabBar = document.querySelector('.tab-bar');
+    if (!tabBar) return;
+
+    tabBar.addEventListener('click', function (e) {
+      const btn = e.target.closest('.tab');
+      if (!btn) return;
+
+      /* Deactivate all */
+      tabBar.querySelectorAll('.tab').forEach(function (t) {
+        t.classList.remove('tab--active');
+        t.setAttribute('aria-selected', 'false');
+      });
+      document.querySelectorAll('.tab-panel').forEach(function (p) {
+        p.hidden = true;
+      });
+
+      /* Activate clicked */
+      btn.classList.add('tab--active');
+      btn.setAttribute('aria-selected', 'true');
+      const targetId = btn.getAttribute('aria-controls');
+      const panel = byId(targetId);
+      if (panel) panel.hidden = false;
+    });
+  }
+
+  /* ── Auth badge ───────────────────────────────────────────── */
+
+  function updateAuthBadge(mode, desc) {
+    const badge = byId('authBadge');
+    if (!badge) return;
+    badge.className = 'auth-badge' + (mode ? ' ' + mode : '');
+
+    const labels = { app: 'GitHub App', token: 'PAT' };
+    setText('authMode', labels[mode] || '—');
+    setText('authDesc', desc ? '· ' + desc : '');
+  }
+
+  /* ── Stats ────────────────────────────────────────────────── */
+
+  function applyStats(d) {
+    setText('sSuccess', d.backportsSucceeded);
+    setText('sAttempt', d.backportsAttempted);
+    setText('sFail',    d.backportsFailed);
+    setText('sMerge',   d.mergesCompleted);
+    setText('sUptime',  d.uptime);
+
+    if (d.uptime)    setText('uptimeChip', 'uptime: ' + d.uptime);
+    if (d.startedAt) setText('sStarted', 'since ' + fmtAgo(d.startedAt));
+    setText('lastUpdated', 'Last updated: ' + new Date().toLocaleTimeString());
+
+    updateAuthBadge(d.authMode, d.authDescription);
+
+    if (d.error) {
+      const alertEl = byId('configAlert');
+      const msgEl   = byId('configAlertMsg');
+      if (alertEl) alertEl.hidden = false;
+      if (msgEl)   msgEl.innerHTML = '<strong>Config error:</strong> ' + escHtml(d.error);
+    }
+
+    renderBackports(d.recentBackports  || []);
+    renderMerges(d.recentMerges        || []);
+    renderEventLog(d.recentBackports   || [], d.recentMerges || []);
+  }
+
+  /* ── Backports ────────────────────────────────────────────── */
+
+  function renderBackports(list) {
+    const el = byId('bpList');
+    if (!el) return;
+
+    if (!list.length) {
+      el.innerHTML =
+        '<li class="empty-state">' +
+        '<span class="empty-icon" aria-hidden="true">🍒</span>' +
+        'No backports yet this session.</li>';
+      return;
+    }
+
+    el.innerHTML = list.map(function (b) {
+      const cls  = escHtml(b.status || 'pending');
+      const link = b.prUrl
+        ? '<a class="bp-pr-link" href="' + escHtml(b.prUrl) +
+          '" target="_blank" rel="noopener noreferrer">→ PR #' + b.newPrNumber + '</a>'
+        : '';
+      const err = b.error
+        ? '<p class="bp-error-msg">' + escHtml(b.error.slice(0, 160)) + '</p>'
+        : '';
+
+      return (
+        '<li class="bp-row">' +
+          '<span class="bp-dot ' + cls + '" aria-hidden="true"></span>' +
+          '<div class="bp-info">' +
+            '<div class="bp-top">' +
+              '<span class="bp-pr-number">PR #' + b.prNumber + '</span>' +
+              '<span class="bp-branch-tag">' + escHtml(b.branch) + '</span>' +
+              '<span class="bp-status-text ' + cls + '">' + cls + '</span>' +
+              link +
+            '</div>' +
+            '<p class="bp-timestamp">' + fmtAgo(b.ts) + '</p>' +
+            err +
+          '</div>' +
+        '</li>'
+      );
+    }).join('');
+  }
+
+  /* ── Merges ───────────────────────────────────────────────── */
+
+  function renderMerges(list) {
+    const el = byId('mergeList');
+    if (!el) return;
+
+    if (!list.length) {
+      el.innerHTML =
+        '<li class="empty-state">' +
+        '<span class="empty-icon" aria-hidden="true">✅</span>' +
+        'No auto-merges yet.</li>';
+      return;
+    }
+
+    el.innerHTML = list.map(function (m) {
+      return (
+        '<li class="merge-row">' +
+          '<span class="merge-pr-number">#' + m.prNumber + '</span>' +
+          '<span class="merge-pr-title" title="' + escHtml(m.title) + '">' +
+            escHtml(m.title || '') +
+          '</span>' +
+          '<span class="merge-timestamp">' + fmtAgo(m.ts) + '</span>' +
+        '</li>'
+      );
+    }).join('');
+  }
+
+  /* ── Event log ────────────────────────────────────────────── */
+
+  function renderEventLog(backports, merges) {
+    const bpEvents = backports.map(function (b) {
+      return {
+        ts:    b.ts,
+        level: b.status === 'failed' ? 'error' : b.status === 'success' ? 'info' : 'warn',
+        msg:   'Backport PR #' + b.prNumber + ' → ' + b.branch + ': ' + b.status +
+               (b.newPrNumber ? ' (opened #' + b.newPrNumber + ')' : ''),
+      };
+    });
+
+    const mergeEvents = merges.map(function (m) {
+      return {
+        ts:    m.ts,
+        level: 'info',
+        msg:   'Auto-merged PR #' + m.prNumber + ': ' + (m.title || ''),
+      };
+    });
+
+    const events = bpEvents.concat(mergeEvents)
+      .sort(function (a, b) { return new Date(b.ts) - new Date(a.ts); })
+      .slice(0, 80);
+
+    const container = byId('logList');
+    const badge     = byId('logBadge');
+    if (badge) badge.textContent = String(events.length);
+    if (!container) return;
+
+    if (!events.length) {
+      container.innerHTML =
+        '<li class="empty-state">' +
+        '<span class="empty-icon" aria-hidden="true">📡</span>' +
+        'No events yet.</li>';
+      return;
+    }
+
+    container.innerHTML = events.map(function (e) {
+      return (
+        '<li class="log-row">' +
+          '<span class="log-timestamp">' + fmtTime(e.ts) + '</span>' +
+          '<span class="log-level ' + escHtml(e.level) + '">' + escHtml(e.level) + '</span>' +
+          '<span class="log-message">'  + escHtml(e.msg) + '</span>' +
+        '</li>'
+      );
+    }).join('');
+  }
+
+  /* ── Polling ──────────────────────────────────────────────── */
+
+  var failCount = 0;
+
+  function poll() {
+    var dot   = byId('pulseDot');
+    var label = byId('statusLabel');
+
+    fetch('/api/stats')
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        failCount = 0;
+        if (dot)   dot.className = 'pulse-dot';
+        if (label) label.textContent = 'online';
+        applyStats(data);
+      })
+      .catch(function (err) {
+        failCount++;
+        if (dot)   dot.className = 'pulse-dot offline';
+        if (label) label.textContent = 'offline (' + failCount + ')';
+        console.warn('[AxotBot] Poll failed:', err.message);
+      });
+  }
+
+  /* ── Initialise ───────────────────────────────────────────── */
+
+  document.addEventListener('DOMContentLoaded', function () {
+    initTabs();
+    poll();
+    setInterval(poll, 10000);
+  });
+  </script>
+
 </body>
 </html>

@@ -1,32 +1,20 @@
 {
-  "name": "advanced-miss-islington",
-  "version": "2.2.0",
-  "description": "Automated backport bot for CPython fork using GitHub App",
-  "type": "module",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "NODE_ENV=development node server.js"
-  },
+  "name": "axotbot",
+  "version": "3.0.0",
+  "description": "🐍🍒⛏🤖 AxotBot – CPython backport & merge bot for zrsx/cpython",
+  "private": true,
   "engines": {
-    "node": ">=18.x"
+    "node": ">=20.0.0"
   },
-  "dependencies": {
-    "express": "^4.19.2",
-    "@octokit/app": "^16.1.2",
-    "@octokit/rest": "^22.0.0",
-    "dotenv": "^16.4.5",
-    "pino-pretty": "13.0.0",
-    "pino": "^10.0.0"
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod",
+    "test": "node --test tests/",
+    "test:watch": "node --test --watch tests/"
   },
-  "devDependencies": {},
-  "keywords": [
-    "github-app",
-    "webhook",
-    "backport",
-    "cpython",
-    "axotbot"
-  ],
-  "author": "Aasyaco",
-  "license": "MIT"
+  "dependencies": {},
+  "devDependencies": {
+    "vercel": "latest"
+  },
+  "license": "Apache-2.0"
 }
